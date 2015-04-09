@@ -23,6 +23,7 @@ Research/Unidata. See COPYRIGHT file for more info.
 #include <fcntl.h>
 #endif
 #include "ncdispatch.h"
+#include "nc3internal.h"
 
 static int nc_initialized = 0;
 
@@ -75,6 +76,42 @@ nc_local_initialize(void)
 	NC_coord_one[i] = 1;
 	NC_coord_zero[i] = 0;
     }
+}
+
+static int
+NC_interpret_magic_number(char* magic, int* model, int* version, int use_parallel)
+{
+    int status = NC_NOERR;
+    /* Look at the magic number */
+    /* Ignore the first byte for HDF */
+#ifdef USE_NETCDF4
+    if(magic[1] == 'H' && magic[2] == 'D' && magic[3] == 'F') {
+	*model = NC_DISPATCH_NC4;
+	*version = 5;
+#ifdef USE_HDF4
+    } else if(magic[0] == '\016' && magic[1] == '\003'
+              && magic[2] == '\023' && magic[3] == '\001') {
+	*model = NC_DISPATCH_NC4;
+	*version = 4;
+#endif
+    } else
+#endif
+    if(magic[0] == 'C' && magic[1] == 'D' && magic[2] == 'F') {
+        if(magic[3] == '\001')
+            *version = 1; /* netcdf classic version 1 */
+         else if(magic[3] == '\002')
+            *version = 2; /* netcdf classic version 2 */
+#ifdef USE_PNETCDF
+         else if(magic[3] == '\005')
+            *version = 5; /* pnetcdf file */
+#endif
+	 else
+	    {status = NC_ENOTNC; goto done;}
+	 *model = (use_parallel || *version == 5)?NC_DISPATCH_NC5:NC_DISPATCH_NC3;
+     } else
+        {status = NC_ENOTNC; goto done;}
+done:
+     return status;
 }
 
 static int
@@ -150,33 +187,7 @@ NC_check_file_type(const char *path, int use_parallel, void *mpi_info,
     }
     
     /* Look at the magic number */
-    /* Ignore the first byte for HDF */
-#ifdef USE_NETCDF4
-    if(magic[1] == 'H' && magic[2] == 'D' && magic[3] == 'F') {
-	*model = NC_DISPATCH_NC4;
-	*version = 5;
-#ifdef USE_HDF4
-    } else if(magic[0] == '\016' && magic[1] == '\003'
-              && magic[2] == '\023' && magic[3] == '\001') {
-	*model = NC_DISPATCH_NC4;
-	*version = 4;
-#endif
-    } else
-#endif
-    if(magic[0] == 'C' && magic[1] == 'D' && magic[2] == 'F') {
-        if(magic[3] == '\001')
-            *version = 1; /* netcdf classic version 1 */
-         else if(magic[3] == '\002')
-            *version = 2; /* netcdf classic version 2 */
-#ifdef USE_PNETCDF
-         else if(magic[3] == '\005')
-            *version = 5; /* pnetcdf file */
-#endif
-	 else
-	    {status = NC_ENOTNC; goto done;}
-	 *model = (use_parallel || *version == 5)?NC_DISPATCH_NC5:NC_DISPATCH_NC3;
-     } else
-        {status = NC_ENOTNC; goto done;}
+    status = NC_interpret_magic_number(magic,model,version,use_parallel);
 
 done:
    return status;
@@ -646,6 +657,98 @@ nc__open(const char *path, int mode,
 {
    return NC_open(path, mode, 0, chunksizehintp, 0, 
 		  NULL, ncidp);
+}
+
+/** 
+Open a netCDF file with the contents taken from a block of memory.
+
+\param memory Pointer to the block of memory containing the contents
+of a netcdf file.
+
+\param size The length of the block of memory being passed.
+ 
+\param mode treated as read only plus NC_DISKLESS plus classic|netcdf4|...
+
+\param ncidp Pointer to location where returned netCDF ID is to be
+stored.
+
+\returns ::NC_NOERR No error.
+
+\returns ::NC_ENOMEM Out of memory.
+
+\returns Various other netcdf classic and netcdf 4 errors.
+*/
+int
+nc_open_mem(void* memory, size_t size, int mode, int* ncidp)
+{
+    int stat = NC_NOERR;
+    NC* ncp = NULL;
+    NC_Dispatch* dispatcher = NULL;
+    int model = 0;
+    int version = 0;
+    char magic[MAGIC_NUMBER_LEN];
+    struct NC_MEM_INFO meminfo;
+ 
+#ifndef USE_DISKLESS
+    return NC_EDISKLESS;     
+#endif
+
+    /* Sanity checks */
+    if(memory == NULL || size < MAGIC_NUMBER_LEN)
+ 	return NC_ENOTNC;
+ 
+    /* clear ignored flags */
+    mode &= (NC_WRITE|NC_NOCLOBBER|NC_MMAP);
+    /* add flags */
+    mode |= (NC_DISKLESS|NC_NOWRITE);
+
+    if(!nc_initialized) {
+       stat = NC_initialize();
+       if(stat) return stat;
+       /* Do local initialization */
+       nc_local_initialize();
+       nc_initialized = 1;
+    }
+
+    /* Get the 4-byte magic from the beginning of the memory */
+    memcpy(magic,memory,sizeof(magic));
+    stat = NC_interpret_magic_number(magic,&model,&version,0);
+    if(stat != NC_NOERR) return stat;
+
+#if defined(USE_NETCDF4)
+   if(model == (NC_DISPATCH_NC4)) 
+	dispatcher = NC4_dispatch_table;
+   else
+#endif
+   if(model == (NC_DISPATCH_NC3))
+	dispatcher = NC3_dispatch_table;
+   else
+      return  NC_ENOTNC;
+
+   /* Create the NC* instance and insert its di  spatcher */
+   stat = new_NC(dispatcher,NULL,mode,&ncp);
+   if(stat != NC_NOERR) return stat;
+
+   /* Add to list of known open files */
+   add_to_NCList(ncp);
+
+#ifdef USE_REFCOUNT
+   /* bump the refcount */
+   ncp->refcount++;
+#endif
+
+   meminfo.size = size;
+   meminfo.memory = memory;
+
+   /* Assume open will fill in remaining ncp fields */
+   stat = dispatcher->open(NULL, mode, 0, NULL, 0, &meminfo, dispatcher, ncp);
+   if(stat == NC_NOERR) {
+     if(ncidp) *ncidp = ncp->ext_ncid;
+   } else {
+	del_from_NCList(ncp);
+	free_NC(ncp);
+   }
+   return stat;
 }
 
 /**
@@ -1650,7 +1753,7 @@ For open, we have the following pieces of information to use to determine the di
 int
 NC_open(const char *path, int cmode,
 	int basepe, size_t *chunksizehintp,
-        int useparallel, void* mpi_info,
+        int useparallel, void* parameters,
         int *ncidp)
 {
    int stat = NC_NOERR;
@@ -1686,7 +1789,7 @@ NC_open(const char *path, int cmode,
       version = 0;
       model = 0;
       /* Look at the file if it exists */
-      stat = NC_check_file_type(path,useparallel,mpi_info,
+      stat = NC_check_file_type(path,useparallel,parameters,
 				&model,&version);
       if(stat == NC_NOERR) {
 	if(model == 0)
@@ -1775,7 +1878,7 @@ havetable:
 
    /* Assume open will fill in remaining ncp fields */
    stat = dispatcher->open(path, cmode, basepe, chunksizehintp,
-			   useparallel, mpi_info, dispatcher, ncp);
+			   useparallel, parameters, dispatcher, ncp);
    if(stat == NC_NOERR) {
      if(ncidp) *ncidp = ncp->ext_ncid;
    } else {
