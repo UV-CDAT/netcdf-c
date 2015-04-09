@@ -327,7 +327,7 @@ memio_open(const char* path,
         return NC_EDISKLESS; /* violates constraints */
 
     assert(sizehintp != NULL);
-    sizehint = *sizehintp;
+    sizehint = *sizehintp; 
 
     if(fIsSet(ioflags,NC_INMEMORY)) {
 	filesize = meminfo->size;
