@@ -16,8 +16,6 @@
 #endif
 
 #include "nc3internal.h"
-#include "ncdispatch.h"
-#include "nc3dispatch.h"
 #include "rnd.h"
 #include "ncx.h"
 
@@ -1066,17 +1064,23 @@ NC3_open(const char * path, int ioflags,
 	if (status = NC_init_pe(nc3, basepe)) {
 		return status;
 	}
-#else
+#else 
 	/*
 	 * !_CRAYMPP, only pe 0 is valid
 	 */
 	if(basepe != 0) {
-      if(nc3) free(nc3);
-      return NC_EINVAL;
+        if(nc3) free(nc3);
+        return NC_EINVAL;
     }
 #endif
-
-	status = ncio_open(path, ioflags, 0, 0, &nc3->chunk, &nc3->nciop, 0);
+  
+	if(path == NULL) {
+	    nc3->meminfo = *(struct NC_MEM_INFO*)parameters;
+	    status = ncio_open(NULL, ioflags, 0, nc3->meminfo.size,
+                                 NULL, &nc3->nciop, &nc3->meminfo.memory);
+	} else {
+	    status = ncio_open(path, ioflags, 0, 0, &nc3->chunk, &nc3->nciop, 0);
+	}
 	if(status)
 		goto unwind_alloc;
 
@@ -1140,6 +1144,52 @@ NC3__enddef(int ncid,
 	return (NC_endef(nc3, h_minfree, v_align, v_minfree, r_align));
 }
 
+/*
+ * In data mode, same as ncclose.
+ * In define mode, restore previous definition.
+ * In create, remove the file.
+ */
+int
+NC3_abort(int ncid)
+{
+	int status;
+	NC *nc;
+	NC3_INFO* nc3;
+	int doUnlink = 0;
+
+	status = NC_check_id(ncid, &nc);
+	if(status != NC_NOERR)
+	    return status;
+	nc3 = NC3_DATA(nc);
+
+	doUnlink = NC_IsNew(nc3);
+
+	if(nc3->old != NULL)
+	{
+		/* a plain redef, not a create */
+		assert(!NC_IsNew(nc3));
+		assert(fIsSet(nc3->flags, NC_INDEF));
+		free_NC3INFO(nc3->old);
+		nc3->old = NULL;
+		fClr(nc3->flags, NC_INDEF);
+	}
+	else if(!NC_readonly(nc3))
+	{
+		status = NC_sync(nc3);
+		if(status != NC_NOERR)
+			return status;
+	}
+
+
+	(void) ncio_close(nc3->nciop, doUnlink);
+	nc3->nciop = NULL;
+
+	free_NC3INFO(nc3);
+	if(nc)
+            NC3_DATA_SET(nc,NULL);
+
+	return NC_NOERR;
+}
 
 int
 NC3_close(int ncid)
@@ -1198,54 +1248,6 @@ NC3_close(int ncid)
 
 	return status;
 }
-
-/*
- * In data mode, same as ncclose.
- * In define mode, restore previous definition.
- * In create, remove the file.
- */
-int
-NC3_abort(int ncid)
-{
-	int status;
-	NC *nc;
-	NC3_INFO* nc3;
-	int doUnlink = 0;
-
-	status = NC_check_id(ncid, &nc);
-	if(status != NC_NOERR)
-	    return status;
-	nc3 = NC3_DATA(nc);
-
-	doUnlink = NC_IsNew(nc3);
-
-	if(nc3->old != NULL)
-	{
-		/* a plain redef, not a create */
-		assert(!NC_IsNew(nc3));
-		assert(fIsSet(nc3->flags, NC_INDEF));
-		free_NC3INFO(nc3->old);
-		nc3->old = NULL;
-		fClr(nc3->flags, NC_INDEF);
-	}
-	else if(!NC_readonly(nc3))
-	{
-		status = NC_sync(nc3);
-		if(status != NC_NOERR)
-			return status;
-	}
-
-
-	(void) ncio_close(nc3->nciop, doUnlink);
-	nc3->nciop = NULL;
-
-	free_NC3INFO(nc3);
-	if(nc)
-            NC3_DATA_SET(nc,NULL);
-
-	return NC_NOERR;
-}
-
 
 int
 NC3_redef(int ncid)

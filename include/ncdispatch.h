@@ -168,7 +168,7 @@ int NC_create(const char *path, int cmode,
 	      int *ncidp);
 int NC_open(const char *path, int cmode,
 	    int basepe, size_t *chunksizehintp,
-	    int useparallel, void* mpi_info,
+	    int useparallel, void* parameters,
 	    int *ncidp);
 
 /* Expose the default vars and varm dispatch entries */
@@ -253,7 +253,8 @@ int (*inq_var_all)(int ncid, int varid, char *name, nc_type *xtypep,
 int (*var_par_access)(int, int, int);
 
 /* Note the following may still be invoked by netcdf client code
-   even when the file is a classic file
+   even when the file is a classic file; they will just return an error or
+   be ignored.
 */
 #ifdef USE_NETCDF4
 int (*show_metadata)(int);
