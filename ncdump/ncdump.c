@@ -43,7 +43,9 @@ int optind;
 #include "indent.h"
 #include "isnan.h"
 #include "cdl.h"
+#ifdef USE_DISKLESS
 #include "netcdf_mem.h"
+#endif
 
 #define int64_t long long
 #define uint64_t unsigned long long
