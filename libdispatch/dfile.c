@@ -23,8 +23,6 @@ Research/Unidata. See COPYRIGHT file for more info.
 #include <fcntl.h>
 #endif
 #include "ncdispatch.h"
-#include "nc3internal.h"
-#include "netcdf_mem.h"
 
 static int nc_initialized = 0;
 
@@ -1717,7 +1715,6 @@ NC_open(const char *path, int cmode,
    NC* ncp = NULL;
    NC_Dispatch* dispatcher = NULL;
    int inmemory = ((cmode & NC_INMEMORY) == NC_INMEMORY);
-
    /* Need pieces of information for now to decide model*/
    int model = 0;
    int isurl = 0; 
@@ -1742,7 +1739,7 @@ NC_open(const char *path, int cmode,
    }
 #endif
 
-   if(!inmemory) {
+   if((cmode & NC_INMEMORY) != NC_INMEMORY) {
        isurl = NC_testurl(path);
        if(isurl)
            model = NC_urlmodel(path);
