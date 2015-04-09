@@ -318,8 +318,12 @@ memio_open(const char* path,
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
+    /* For diskless open, the file must be classic version 1 or 2.*/
+    if(fIsSet(ioflags,NC_NETCDF4))
+        return NC_EDISKLESS; /* violates constraints */
+
     assert(sizehintp != NULL);
-    sizehint = *sizehintp;
+    sizehint = *sizehintp; 
 
     if(fIsSet(ioflags,NC_INMEMORY)) {
 	filesize = meminfo->size;
