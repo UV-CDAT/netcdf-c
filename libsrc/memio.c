@@ -24,6 +24,7 @@
 #endif
 #include "ncdispatch.h"
 #include "nc3internal.h"
+#include "netcdf_mem.h"
 
 #undef DEBUG
 
@@ -327,8 +328,8 @@ memio_open(const char* path,
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
-    assert(sizehintp != NULL);
-    sizehint = *sizehintp; 
+    assert(path == NULL || sizehintp != NULL);
+    sizehint = (sizehintp != NULL ? *sizehintp : 0);
 
     if(fSet(ioflags,NC_INMEMORY)) {
 	filesize = meminfo->size;
@@ -359,6 +360,7 @@ memio_open(const char* path,
         (void)lseek(fd,0,SEEK_SET);
         if(filesize < (off_t)sizehint)
             filesize = (off_t)sizehint;
+        status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
     }
 
     status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
