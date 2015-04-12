@@ -23,7 +23,6 @@
 #include <fcntl.h>
 #endif
 #include "nc3internal.h"
-#include "netcdf_mem.h"
 
 #undef DEBUG
 

@@ -23,8 +23,6 @@ Research/Unidata. See COPYRIGHT file for more info.
 #include <fcntl.h>
 #endif
 #include "ncdispatch.h"
-#include "nc3internal.h"
-#include "netcdf_mem.h"
 
 static int nc_initialized = 0;
 
@@ -698,11 +696,6 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
     if(memory == NULL || size < MAGIC_NUMBER_LEN || path == NULL)
  	return NC_EINVAL;
  
-    /* clear ignored flags */
-    mode &= (NC_WRITE|NC_NOCLOBBER|NC_MMAP);
-    /* add flags */
-    mode |= (NC_DISKLESS|NC_NOWRITE);
-
     if(!nc_initialized) {
        stat = NC_initialize();
        if(stat) return stat;
@@ -738,17 +731,21 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
    ncp->refcount++;
 #endif
 
-   meminfo.size = size;
-   meminfo.memory = memory;
-
    /* Assume open will fill in remaining ncp fields */
-   stat = dispatcher->open(NULL, mode, 0, NULL, 0, &meminfo, dispatcher, ncp);
+   stat = dispatcher->create(path, mode, 0, 0, NULL, 0, NULL, ncp);
    if(stat == NC_NOERR) {
      if(ncidp) *ncidp = ncp->ext_ncid;
    } else {
 	del_from_NCList(ncp);
 	free_NC(ncp);
    }
+   /* Set the image */
+   stat = dispatcher->set_content(ncid, size, memory);
+   if(!stat) {
+	del_from_NCList(ncp);
+	free_NC(ncp);
+   }
+
    return stat;
 }
 
