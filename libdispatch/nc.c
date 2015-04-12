@@ -59,6 +59,10 @@ new_NC(NC_Dispatch* dispatcher, const char* path, int mode, NC** ncpp)
     ncp->dispatch = dispatcher;
     ncp->path = nulldup(path);
     ncp->mode = mode;
+    if(ncp->path == NULL) { /* fail */
+        free_NC(ncp);
+	return NC_ENOMEM;
+    }
     if(ncpp) {
       *ncpp = ncp;
     } else {
