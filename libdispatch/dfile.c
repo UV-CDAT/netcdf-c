@@ -23,8 +23,6 @@ Research/Unidata. See COPYRIGHT file for more info.
 #include <fcntl.h>
 #endif
 #include "ncdispatch.h"
-#include "nc3internal.h"
-#include "netcdf_mem.h"
 
 static int nc_initialized = 0;
 
