@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #endif
 #include "nc3internal.h"
+#include "netcdf_mem.h"
 
 #undef DEBUG
 
@@ -98,11 +99,15 @@ static long pagesize = 0;
 
 /* Create a new ncio struct to hold info about the file. */
 static int
-memio_new(const char* path, int ioflags, off_t initialsize, ncio** nciopp, NCMEMIO** memiop)
+memio_new(const char* path, int ioflags, off_t initialsize, void* memory, ncio** nciopp, NCMEMIO** memiop)
 {
     int status = NC_NOERR;
     ncio* nciop = NULL;
     NCMEMIO* memio = NULL;
+
+    /* use asserts because this is an internal function */
+    assert(memiop != NULL && nciopp != NULL);
+    assert(path != NULL || (memory != NULL && initialsize > 0));
 
     if(pagesize == 0) {
 
@@ -147,7 +152,7 @@ memio_new(const char* path, int ioflags, off_t initialsize, ncio** nciopp, NCMEM
     if(path == NULL) { /* memory based content */
         *((char**)&nciop->path) = NULL;
         memio->alloc = initialsize;
-        memio->memory = *(void**)memiop;
+        memio->memory = memory;
         memio->size = initialsize;
         memio->pos = 0;
         memio->persist = 0;
@@ -161,20 +166,18 @@ memio_new(const char* path, int ioflags, off_t initialsize, ncio** nciopp, NCMEM
         memio->persist = fIsSet(ioflags,NC_WRITE);
     }
 
-    if(nciopp) *nciopp = nciop;
+    if(memiop && memio) *memiop = memio; else free(memio);
+    if(nciopp && nciop) *nciopp = nciop;
     else {
         if(nciop->path != NULL) free((char*)nciop->path);
         free(nciop);
-    }
-    if(path != NULL) {
-	if(memiop) *memiop = memio;
-        else free(memio);
     }
 
 done:
     return status;
 
 fail:
+    if(memio != NULL) free(memio);
     if(nciop != NULL) {
         if(nciop->path != NULL) free((char*)nciop->path);
         free(nciop);
@@ -192,6 +195,7 @@ fail:
    igeto - 
    igetsz - 
    sizehintp - the size of a page of data for buffered reads and writes.
+   parameters - arbitrary data 
    nciopp - pointer to a pointer that will get location of newly
    created and inited ncio struct.
    mempp - pointer to pointer to the initial memory read.
@@ -200,6 +204,7 @@ int
 memio_create(const char* path, int ioflags,
     size_t initialsz,
     off_t igeto, size_t igetsz, size_t* sizehintp,
+    void* parameters,
     ncio* *nciopp, void** const mempp)
 {
     ncio* nciop;
@@ -216,7 +221,7 @@ memio_create(const char* path, int ioflags,
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
-    status = memio_new(path, ioflags, initialsz, &nciop, &memio);
+    status = memio_new(path, ioflags, initialsz, NULL, &nciop, &memio);
     if(status != NC_NOERR)
         return status;
     memio->size = 0;
@@ -287,6 +292,7 @@ unwind_open:
    igetsz - the size in bytes of initial page get (a.k.a. extent). Not
    ever used in the library.
    sizehintp - the size of a page of data for buffered reads and writes.
+   parameters - arbitrary data 
    nciopp - pointer to pointer that will get address of newly created
    and inited ncio struct.
    mempp - pointer to pointer to the initial memory read.
@@ -295,6 +301,7 @@ int
 memio_open(const char* path,
     int ioflags,
     off_t igeto, size_t igetsz, size_t* sizehintp,
+    void* parameters,
     ncio* *nciopp, void** const mempp)
 {
     ncio* nciop = NULL;
@@ -305,20 +312,27 @@ memio_open(const char* path,
     NCMEMIO* memio = NULL;
     size_t sizehint;
     off_t filesize;
+    NC_MEM_INFO* meminfo = (NC_MEM_INFO*)parameters;
 
     if(path != NULL && strlen(path) == 0)
-        return EINVAL;
+        return NC_EINVAL;
+
+    if(meminfo != NULL) {
+	if(meminfo->size == 0 || meminfo->memory == NULL)
+	    return NC_EINVAL;
+    }
 
     /* For diskless open, the file must be classic version 1 or 2.*/
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
-    assert(sizehintp != NULL);
-    sizehint = *sizehintp; 
+    assert(path == NULL || sizehintp != NULL);
+    sizehint = (sizehintp != NULL ? *sizehintp : 0);
 
     if(path == NULL) {/* Using memory as content */
 	fd = -1; /* placeholder */
-	filesize = sizehint;
+	filesize = meminfo->size;
+        status = memio_new(path, ioflags, meminfo->size, meminfo->memory, &nciop, &memio);
     } else {
         /* Open the file, but make sure we can write it if needed */
         oflags = (persist ? O_RDWR : O_RDONLY);    
@@ -346,8 +360,8 @@ memio_open(const char* path,
         (void)lseek(fd,0,SEEK_SET);
         if(filesize < (off_t)sizehint)
             filesize = (off_t)sizehint;
+        status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
     }
-    status = memio_new(path, ioflags, filesize, &nciop, &memio);
     if(status != NC_NOERR) {
 	if(fd >= 0) 
 	    close(fd);
@@ -356,7 +370,7 @@ memio_open(const char* path,
     memio->size = filesize;
 
     if(path == NULL) {
-        memio->memory = *mempp;
+        memio->memory = meminfo->memory;
     } else {
         memio->memory = (char*)malloc(memio->alloc);
         if(memio->memory == NULL) {status = NC_ENOMEM; goto unwind_open;}
@@ -400,8 +414,8 @@ fprintf(stderr,"memio_open: initial memory: %lu/%lu\n",(unsigned long)memio->mem
             goto unwind_open;
     }
 
-    *sizehintp = sizehint;
-    *nciopp = nciop;
+    if(sizehintp) *sizehintp = sizehint;
+    if(nciopp) *nciopp = nciop; else {ncio_close(nciop,0);}
     return NC_NOERR;
 
 unwind_open:

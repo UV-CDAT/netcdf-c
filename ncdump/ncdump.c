@@ -1996,7 +1996,7 @@ main(int argc, char *argv[])
        exit(EXIT_SUCCESS);
     }
 
-    while ((c = getopt(argc, argv, "b:cd:f:g:hikl:n:p:stv:xwKX")) != EOF)
+    while ((c = getopt(argc, argv, "b:cd:f:g:hikl:n:p:stv:xwKX:")) != EOF)
       switch(c) {
 	case 'h':		/* dump header only, no data */
 	  formatting_specs.header_only = true;

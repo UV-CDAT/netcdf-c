@@ -24,6 +24,7 @@ Research/Unidata. See COPYRIGHT file for more info.
 #endif
 #include "ncdispatch.h"
 #include "nc3internal.h"
+#include "netcdf_mem.h"
 
 static int nc_initialized = 0;
 
@@ -662,12 +663,12 @@ nc__open(const char *path, int mode,
 /** 
 Open a netCDF file with the contents taken from a block of memory.
 
-\param memory Pointer to the block of memory containing the contents
-of a netcdf file.
+\param path Must be non-null, but otherwise only used to set the dataset name.
 
 \param size The length of the block of memory being passed.
  
-\param mode treated as read only plus NC_DISKLESS plus classic|netcdf4|...
+\param memory Pointer to the block of memory containing the contents
+of a netcdf file.
 
 \param ncidp Pointer to location where returned netCDF ID is to be
 stored.
@@ -679,7 +680,7 @@ stored.
 \returns Various other netcdf classic and netcdf 4 errors.
 */
 int
-nc_open_mem(void* memory, size_t size, int mode, int* ncidp)
+nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
 {
     int stat = NC_NOERR;
     NC* ncp = NULL;
@@ -687,15 +688,15 @@ nc_open_mem(void* memory, size_t size, int mode, int* ncidp)
     int model = 0;
     int version = 0;
     char magic[MAGIC_NUMBER_LEN];
-    struct NC_MEM_INFO meminfo;
+    int mode = NC_DISKLESS | NC_NOWRITE;
  
 #ifndef USE_DISKLESS
     return NC_EDISKLESS;     
 #endif
 
     /* Sanity checks */
-    if(memory == NULL || size < MAGIC_NUMBER_LEN)
- 	return NC_ENOTNC;
+    if(memory == NULL || size < MAGIC_NUMBER_LEN || path == NULL)
+ 	return NC_EINVAL;
  
     /* clear ignored flags */
     mode &= (NC_WRITE|NC_NOCLOBBER|NC_MMAP);
@@ -725,7 +726,7 @@ nc_open_mem(void* memory, size_t size, int mode, int* ncidp)
    else
       return  NC_ENOTNC;
 
-   /* Create the NC* instance and insert its di  spatcher */
+   /* Create the NC* instance and insert its dispatcher */
    stat = new_NC(dispatcher,NULL,mode,&ncp);
    if(stat != NC_NOERR) return stat;
 

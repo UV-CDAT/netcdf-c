@@ -967,7 +967,7 @@ NC3_create(const char *path, int ioflags,
 	assert(nc3->xsz == ncx_len_NC(nc3,sizeof_off_t));
 
         status =  ncio_create(path, ioflags, initialsz,
-			      0, nc3->xsz, &nc3->chunk,
+			      0, nc3->xsz, &nc3->chunk, NULL,
 			      &nc3->nciop, &xp);
 	if(status != NC_NOERR)
 	{
@@ -1075,11 +1075,11 @@ NC3_open(const char * path, int ioflags,
 #endif
   
 	if(path == NULL) {
-	    nc3->meminfo = *(struct NC_MEM_INFO*)parameters;
-	    status = ncio_open(NULL, ioflags, 0, nc3->meminfo.size,
-                                 NULL, &nc3->nciop, &nc3->meminfo.memory);
+	    status = ncio_open(NULL, ioflags, 0, 0, 0, parameters,
+                               &nc3->nciop, NULL);
 	} else {
-	    status = ncio_open(path, ioflags, 0, 0, &nc3->chunk, &nc3->nciop, 0);
+	    status = ncio_open(path, ioflags, 0, 0, &nc3->chunk, NULL, 
+			       &nc3->nciop, NULL);
 	}
 	if(status)
 		goto unwind_alloc;
