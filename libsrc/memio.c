@@ -24,7 +24,6 @@
 #endif
 #include "ncdispatch.h"
 #include "nc3internal.h"
-#include "netcdf_mem.h"
 
 #undef DEBUG
 
