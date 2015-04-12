@@ -24,6 +24,7 @@
 #endif
 #include "ncdispatch.h"
 #include "nc3internal.h"
+#include "netcdf_mem.h"
 
 #undef DEBUG
 
@@ -322,10 +323,6 @@ memio_open(const char* path,
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
-    /* For diskless open, the file must be classic version 1 or 2.*/
-    if(fIsSet(ioflags,NC_NETCDF4))
-        return NC_EDISKLESS; /* violates constraints */
-
     assert(sizehintp != NULL);
     sizehint = *sizehintp; 
 
@@ -358,6 +355,7 @@ memio_open(const char* path,
         (void)lseek(fd,0,SEEK_SET);
         if(filesize < (off_t)sizehint)
             filesize = (off_t)sizehint;
+        status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
     }
 
         /* get current filesize  = max(|file|,initialize)*/
@@ -388,7 +386,11 @@ memio_open(const char* path,
     }
     memio->size = filesize;
 
+<<<<<<< HEAD
     if(fIsSet(ioflags,NC_INMEMORY)) {
+=======
+    if(fisSet(ioflags,NC_INMEMORY)) {
+>>>>>>> ckp
         memio->memory = meminfo->memory;
         memio->persist = 0;
     } else {
@@ -521,11 +523,15 @@ memio_close(ncio* nciop, int doUnlink)
     assert(memio != NULL);
 
     /* See if the user wants the contents persisted to a file */
+<<<<<<< HEAD
     if(!fIsSet(nciop->ioflags,NC_INMEMORY) && memio->persist) {
+=======
+    if(!fisSet(nciop->ioflags,NC_INMEMORY) && memio->persist) {
+>>>>>>> ckp
         /* Try to open the file for writing */
 	int oflags = O_WRONLY|O_CREAT|O_TRUNC;
 #ifdef O_BINARY
-        fSet(oflags, O_BINARY);
+        fisSet(oflags, O_BINARY);
 #endif
 	fd = open(nciop->path, oflags, OPENMODE);
 	if(fd >= 0) {
@@ -547,7 +553,11 @@ memio_close(ncio* nciop, int doUnlink)
      }
 
 done:
+<<<<<<< HEAD
     if(!fIsSet(nciop->ioflags,NC_INMEMORY) && (memio->memory != NULL))
+=======
+    if(!fisSet(nciop->ioflags,NC_INMEMORY) && (memio->memory != NULL))
+>>>>>>> ckp
 	free(memio->memory);
     /* do cleanup  */
     if(fd >= 0) (void)close(fd);		
