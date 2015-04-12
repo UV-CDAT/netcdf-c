@@ -101,6 +101,11 @@ typedef struct NC_MPI_INFO {
     MPI_Info info;
 } NC_MPI_INFO;
 
+typedef struct NC_MEM_INFO {
+    size_t size;
+    void* memory;
+} NC_MEM_INFO;
+
 /* Define known dispatch tables and initializers */
 
 /*Forward*/
@@ -164,7 +169,7 @@ struct NC;
 
 int NC_create(const char *path, int cmode,
 	      size_t initialsz, int basepe, size_t *chunksizehintp, 
-	      int useparallel,void* mpi_info,
+	      int useparallel,void* parameters,
 	      int *ncidp);
 int NC_open(const char *path, int cmode,
 	    int basepe, size_t *chunksizehintp,

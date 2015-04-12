@@ -274,10 +274,6 @@ struct NC3_INFO {
 	 */
 	ushmem_t lock[LOCKNUMREC_DIM];
 #endif
-        struct NC_MEM_INFO {
-	    size_t size;
-	    void* memory;
-	} meminfo;
 };
 
 #define NC_readonly(ncp) \
