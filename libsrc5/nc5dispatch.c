@@ -1151,8 +1151,6 @@ NC5_set_var_chunk_cache,
 NC5_get_var_chunk_cache,
 #endif /*USE_NETCDF4*/
 
-NULL, /*set_content*/
-
 };
 
 NC_Dispatch* NC5_dispatch_table = NULL; /* moved here from ddispatch.c */
