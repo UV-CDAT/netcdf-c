@@ -1584,35 +1584,6 @@ NC3_inq_type(int ncid, nc_type typeid, char *name, size_t *size)
 }
 
 /**************************************************/
-#if 0
-int
-NC3_set_content(int ncid, size_t size, void* memory)
-{
-    int status = NC_NOERR;
-    NC *nc;
-    NC3_INFO* nc3;
-
-    status = NC_check_id(ncid, &nc);
-    if(status != NC_NOERR)
-        return status;
-    nc3 = NC3_DATA(nc);
-
-#ifdef USE_DISKLESS
-    fClr(nc3->flags, NC_CREAT);
-    status = memio_set_content(nc3->nciop, size, memory);
-    if(status != NC_NOERR) goto done;
-    status = nc_get_NC(nc3);
-    if(status != NC_NOERR) goto done;
-#else
-    status = NC_EDISKLESS;
-#endif    				
-
-done:
-    return status;
-}
-#endif
-
-/**************************************************/
 
 int
 NC3_set_content(int ncid, size_t size, void* memory)
@@ -1684,4 +1655,3 @@ nc_delete(const char * path)
 {
         return nc_delete_mp(path, 0);
 }
-
