@@ -1683,3 +1683,4 @@ nc_delete(const char * path)
 {
         return nc_delete_mp(path, 0);
 }
+
