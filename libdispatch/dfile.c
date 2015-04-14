@@ -678,7 +678,7 @@ stored.
 \returns Various other netcdf classic and netcdf 4 errors.
 */
 int
-nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
+nc_open_mem(const char* path, int mode, size_t size, void* memory, int* ncidp)
 {
     int stat = NC_NOERR;
     NC* ncp = NULL;
@@ -686,8 +686,7 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
     int model = 0;
     int version = 0;
     char magic[MAGIC_NUMBER_LEN];
-    int mode = NC_DISKLESS | NC_NOWRITE;
- 
+
 #ifndef USE_DISKLESS
     return NC_EDISKLESS;     
 #endif
@@ -696,6 +695,9 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
     if(memory == NULL || size < MAGIC_NUMBER_LEN || path == NULL)
  	return NC_EINVAL;
  
+    if(mode & (NC_WRITE|NC_MPIIO|NC_MPIPOSIX|NC_MMAP))
+	return NC_EINVAL;
+
     if(!nc_initialized) {
        stat = NC_initialize();
        if(stat) return stat;
@@ -709,15 +711,33 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
     stat = NC_interpret_magic_number(magic,&model,&version,0);
     if(stat != NC_NOERR) return stat;
 
+    /* Set the proper mode flags */
+    mode |= (NC_DISKLESS|NC_NOCLOBBER);
 #if defined(USE_NETCDF4)
-   if(model == (NC_DISPATCH_NC4)) 
+   if(model == (NC_DISPATCH_NC4)) {
 	dispatcher = NC4_dispatch_table;
-   else
-#endif
-   if(model == (NC_DISPATCH_NC3))
+	mode |= (NC_NETCDF4);
+   } else
+#else
+   if(model == (NC_DISPATCH_NC3)) {
 	dispatcher = NC3_dispatch_table;
-   else
+	switch (version) {
+	case 1:
+	case 2:
+	    mode ~= (NC_NETCDF4|NC_64BIT_OFFSET);
+            mode |= (NC_CLASSIC_MODEL);
+	    break
+	case 3:
+	    mode ~= (NC_NETCDF4);
+	    mode |= (NC_64BIT_OFFSET);
+	    break;
+	case 5:
+	default:
+	    return NC_EDISKLESS;
+	}
+   } else
       return  NC_ENOTNC;
+#endif
 
    /* Create the NC* instance and insert its dispatcher */
    stat = new_NC(dispatcher,NULL,mode,&ncp);
@@ -731,8 +751,11 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
    ncp->refcount++;
 #endif
 
-   /* Assume open will fill in remaining ncp fields */
-   stat = dispatcher->create(path, mode, 0, 0, NULL, 0, NULL, ncp);
+   /* Assume create will fill in remaining ncp fields;
+      note that create is used instead of open to avoid reading
+      from disk.
+   */
+   stat = dispatcher->create(path, mode, 0, 0, NULL, 0, NULL, dispatcher, ncp);
    if(stat == NC_NOERR) {
      if(ncidp) *ncidp = ncp->ext_ncid;
    } else {
@@ -740,7 +763,7 @@ nc_open_mem(const char* path, size_t size, void* memory, int* ncidp)
 	free_NC(ncp);
    }
    /* Set the image */
-   stat = dispatcher->set_content(ncid, size, memory);
+   stat = dispatcher->set_content(ncp->ext_ncid, size, memory);
    if(!stat) {
 	del_from_NCList(ncp);
 	free_NC(ncp);
@@ -1912,7 +1935,6 @@ nc__pseudofd(void)
 	pseudofd = maxfd+1;
 #endif
     }
-
     return pseudofd++;
 }
 
