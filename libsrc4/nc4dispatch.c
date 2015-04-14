@@ -98,6 +98,8 @@ NC4_def_var_endian,
 NC4_set_var_chunk_cache,
 NC4_get_var_chunk_cache,
 
+NC4_set_content,
+
 };
 
 NC_Dispatch* NC4_dispatch_table = NULL; /* moved here from ddispatch.c */
