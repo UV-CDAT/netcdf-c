@@ -172,6 +172,9 @@ extern int ncio_open(const char *path, int ioflags,
       the new package when appropriate.
 */
 
+#ifdef USE_DISKLESS
+extern int memio_set_content(ncio* nciop, size_t size, void* memory);
+#endif
 
 
 #endif /* _NCIO_H_ */

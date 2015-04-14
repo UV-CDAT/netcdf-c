@@ -120,7 +120,10 @@ extern "C" {
 #define NC_NOFILL	0x100	/**< Argument to nc_set_fill() to turn off filling of data. */
 
 /* Define the ioflags bits for nc_create and nc_open.
-   currently unused: 0x0010,0x0020,0x0040,0x0080
+   currently unused:
+	0x0020
+	0x0040
+	0x0080
    and the whole upper 16 bits
 */
 
@@ -132,6 +135,7 @@ extern "C" {
 
 #define NC_DISKLESS      0x0008  /**< Use diskless file. Mode flag for nc_open() or nc_create(). */
 #define NC_MMAP          0x0010  /**< Use diskless file with mmap. Mode flag for nc_open() or nc_create(). */
+#define NC_INMEMORY      0x0040  /**< Read from memory. Mode flag for nc_open() or nc_create(). */
 
 #define NC_CLASSIC_MODEL 0x0100 /**< Enforce classic model. Mode flag for nc_create(). */
 #define NC_64BIT_OFFSET  0x0200  /**< Use large (64-bit) file offsets. Mode flag for nc_create(). */

@@ -3204,6 +3204,33 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
    return NC_NOERR;
 }
 
+int
+NC4_set_content(int ncid, size_t size, void* memory)
+{
+    int retval = NC_NOERR;
+    herr_t herr;
+    NC *nc;
+    NC_HDF5_FILE_INFO_T *h5;
+    NC_GRP_INFO_T *grp;
+
+    LOG((4,"%s: ncid 0x%x size %ld memory 0x%x", __func__, ncid, size, memory));
+
+    /* Find file metadata. */
+    if ((retval = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
+	return retval;
+    assert(h5 && grp && nc);
+
+#ifdef USE_DISKLESS
+    herr = H5Pset_file_image(h5->hdfid,memory,size);
+    if(herr)
+	BAIL(NC_EHDFERR);
+#else
+    retval = NC_EDISKLESS;
+#endif    				
+
+done:
+    return retval;
+}
 
 /* This function will do the enddef stuff for a netcdf-4 file. */
 int

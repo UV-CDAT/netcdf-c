@@ -179,7 +179,9 @@ NC3_get_vara(int ncid, int varid,
 
 /* End _var */
 
-extern int NC3_initialize();
+EXTERNL int NC3_set_content(int,size_t,void*);
+
+EXTERNL int NC3_initialize();
 
 
 #if defined(__cplusplus)

@@ -168,6 +168,7 @@ NC3_get_var_chunk_cache,
 
 #endif /*_NC4DISPATCH_H*/
 
+NC3_set_content,
 };
 
 NC_Dispatch* NC3_dispatch_table = NULL; /*!< NC3 Dispatch table, moved here from ddispatch.c */
