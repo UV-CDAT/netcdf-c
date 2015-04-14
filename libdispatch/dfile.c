@@ -680,96 +680,21 @@ stored.
 int
 nc_open_mem(const char* path, int mode, size_t size, void* memory, int* ncidp)
 {
-    int stat = NC_NOERR;
-    NC* ncp = NULL;
-    NC_Dispatch* dispatcher = NULL;
-    int model = 0;
-    int version = 0;
-    char magic[MAGIC_NUMBER_LEN];
-
-#ifndef USE_DISKLESS
-    return NC_EDISKLESS;     
-#endif
+#ifdef USE_DISKLESS
+    NC_MEM_INFO meminfo;
 
     /* Sanity checks */
     if(memory == NULL || size < MAGIC_NUMBER_LEN || path == NULL)
  	return NC_EINVAL;
- 
     if(mode & (NC_WRITE|NC_MPIIO|NC_MPIPOSIX|NC_MMAP))
 	return NC_EINVAL;
-
-    if(!nc_initialized) {
-       stat = NC_initialize();
-       if(stat) return stat;
-       /* Do local initialization */
-       nc_local_initialize();
-       nc_initialized = 1;
-    }
-
-    /* Get the 4-byte magic from the beginning of the memory */
-    memcpy(magic,memory,sizeof(magic));
-    stat = NC_interpret_magic_number(magic,&model,&version,0);
-    if(stat != NC_NOERR) return stat;
-
-    /* Set the proper mode flags */
-    mode |= (NC_DISKLESS|NC_NOCLOBBER);
-#if defined(USE_NETCDF4)
-   if(model == (NC_DISPATCH_NC4)) {
-	dispatcher = NC4_dispatch_table;
-	mode |= (NC_NETCDF4);
-   } else
+    mode |= (NC_INMEMORY|NC_DISKLESS);
+    meminfo.size = size;
+    meminfo.memory = memory;
+    return NC_open(path, mode, 0, NULL, 0, &meminfo, ncidp);
 #else
-   if(model == (NC_DISPATCH_NC3)) {
-	dispatcher = NC3_dispatch_table;
-	switch (version) {
-	case 1:
-	case 2:
-	    mode ~= (NC_NETCDF4|NC_64BIT_OFFSET);
-            mode |= (NC_CLASSIC_MODEL);
-	    break
-	case 3:
-	    mode ~= (NC_NETCDF4);
-	    mode |= (NC_64BIT_OFFSET);
-	    break;
-	case 5:
-	default:
-	    return NC_EDISKLESS;
-	}
-   } else
-      return  NC_ENOTNC;
+    return NC_EDISKLESS;     
 #endif
-
-   /* Create the NC* instance and insert its dispatcher */
-   stat = new_NC(dispatcher,NULL,mode,&ncp);
-   if(stat != NC_NOERR) return stat;
-
-   /* Add to list of known open files */
-   add_to_NCList(ncp);
-
-#ifdef USE_REFCOUNT
-   /* bump the refcount */
-   ncp->refcount++;
-#endif
-
-   /* Assume create will fill in remaining ncp fields;
-      note that create is used instead of open to avoid reading
-      from disk.
-   */
-   stat = dispatcher->create(path, mode, 0, 0, NULL, 0, NULL, dispatcher, ncp);
-   if(stat == NC_NOERR) {
-     if(ncidp) *ncidp = ncp->ext_ncid;
-   } else {
-	del_from_NCList(ncp);
-	free_NC(ncp);
-   }
-   /* Set the image */
-   stat = dispatcher->set_content(ncp->ext_ncid, size, memory);
-   if(!stat) {
-	del_from_NCList(ncp);
-	free_NC(ncp);
-   }
-
-   return stat;
 }
 
 /**
@@ -1780,7 +1705,7 @@ NC_open(const char *path, int cmode,
    int stat = NC_NOERR;
    NC* ncp = NULL;
    NC_Dispatch* dispatcher = NULL;
-   /* Need two pieces of information for now */
+   /* Need pieces of information for now to decide model*/
    int model = 0;
    int isurl = 0; 
    int version = 0;
@@ -1803,25 +1728,27 @@ NC_open(const char *path, int cmode,
    }
 #endif
 
-   isurl = NC_testurl(path);
-   if(isurl)
-      model = NC_urlmodel(path);
-   else {
-      version = 0;
-      model = 0;
-      /* Look at the file if it exists */
-      stat = NC_check_file_type(path,useparallel,parameters,
+   if((cmode & NC_INMEMORY) == NC_INMEMORY) {
+       isurl = NC_testurl(path);
+       if(isurl)
+           model = NC_urlmodel(path);
+       else {
+           version = 0;
+	   model = 0;
+           /* Look at the file if it exists */
+           stat = NC_check_file_type(path,useparallel,parameters,
 				&model,&version);
-      if(stat == NC_NOERR) {
-	if(model == 0)
-	    return NC_ENOTNC;
-      } else /* presumably not a netcdf file */
-	return stat;
+           if(stat == NC_NOERR) {
+   	   if(model == 0)
+	       return NC_ENOTNC;
+           } else /* presumably not a netcdf file */
+	       return stat;
+	}
    }
 
 #if 1
    if(model == 0) {
-	fprintf(stderr,"Model != 0\n");
+	fprintf(stderr,"Model == 0\n");
 	return NC_ENOTNC;
    }
 #else

@@ -301,9 +301,6 @@ int (*set_var_chunk_cache)(int, int, size_t, size_t, float);
 int (*get_var_chunk_cache)(int ncid, int varid, size_t *sizep, size_t *nelemsp, float *preemptionp);
 #endif /*USE_NETCDF4*/
 
-/* Set the image content of a created file */
-int (*set_content)(int, size_t, void*);
-
 };
 
 /* Following functions must be handled as non-dispatch */

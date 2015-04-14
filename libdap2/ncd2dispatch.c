@@ -178,8 +178,6 @@ NULL, /*get_var_chunk_cache*/
 
 #endif /*USE_NETCDF4*/
 
-NULL, /*set_content*/
-
 };
 
 NC_Dispatch* NCD2_dispatch_table = NULL; /* moved here from ddispatch.c */

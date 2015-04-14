@@ -188,7 +188,7 @@ nc_check_for_hdf(const char *path, int use_parallel, MPI_Comm comm, MPI_Info inf
 {
    char blob[MAGIC_NUMBER_LEN];
 
-   assert(hdf_file && path);
+   assert(hdf_file);
    LOG((3, "%s: path %s", __func__, path));
 
    /* HDF5 function handles possible user block at beginning of file */
@@ -433,7 +433,7 @@ Create a netCDF-4/HDF5 file.
 \param basepe Ignored by this function.
 \param chunksizehintp Ignored by this function.
 \param use_parallel 0 for sequential, non-zero for parallel I/O.
-\param mpidata pointer to struct holdind data for parallel I/O
+\param parameters pointer to struct holding extra data (e.g. for parallel I/O)
 layer. Ignored if NULL.
 \param dispatch Pointer to the dispatch table for this file.
 \param nc_file Pointer to an instance of NC.
@@ -441,7 +441,7 @@ layer. Ignored if NULL.
 */
 int
 NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
-	   size_t *chunksizehintp, int use_parallel, void *mpidata,
+	   size_t *chunksizehintp, int use_parallel, void *parameters,
 	   NC_Dispatch *dispatch, NC* nc_file)
 {
    MPI_Comm comm = MPI_COMM_WORLD;
@@ -454,10 +454,10 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
 	__func__, path, cmode, comm, info));
 
 #ifdef USE_PARALLEL
-   if (mpidata)
+   if (parameters)
    {
-      comm = ((NC_MPI_INFO *)mpidata)->comm;
-      info = ((NC_MPI_INFO *)mpidata)->info;
+      comm = ((NC_MPI_INFO *)parameters)->comm;
+      info = ((NC_MPI_INFO *)parameters)->info;
    }
 #endif /* USE_PARALLEL */
 
@@ -2667,7 +2667,7 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 
 int
 NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
-	 int use_parallel, void *mpidata, NC_Dispatch *dispatch, NC *nc_file)
+	 int use_parallel, void *parameters, NC_Dispatch *dispatch, NC *nc_file)
 {
    int hdf_file = 0;
    MPI_Comm comm = MPI_COMM_WORLD;
@@ -2680,10 +2680,10 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 	__func__, path, mode, comm, info));
 
 #ifdef USE_PARALLEL
-   if (mpidata)
+   if ((mode & (NC_MPIIO | NC_MPIPOSIX)) && (parameters != NULL))
    {
-      comm = ((NC_MPI_INFO *)mpidata)->comm;
-      info = ((NC_MPI_INFO *)mpidata)->info;
+      comm = ((NC_MPI_INFO *)parameters)->comm;
+      info = ((NC_MPI_INFO *)parameters)->info;
    }
 #endif /* USE_PARALLEL */
 
@@ -2715,41 +2715,9 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
    }
 #endif /* USE_PARALLEL_POSIX */
 
-
    /* Depending on the type of file, open it. */
-
-#if 0 /*def USE_PNETCDF*/
-   if(mode & NC_PNETCDF) {
-	/* this is not really an hdf file */
-      int pnetcdf_nvars, i;
-      NC_HDF5_FILE_INFO_T* nc4_info;
-
-      /* Create the fake nc4_info data */
-      res = nc4_nc4f_list_add(nc_file, path, mode);
-
-      nc4_info = NC4_DATA(nc_file);
-      assert(nc4_info);
-
-      res = ncmpi_open(comm, path, mode, info, &(nc_file->int_ncid));
-      nc4_info->pnetcdf_file++;
-
-      /* Default to independent access, like netCDF-4/HDF5 files. */
-      if (!res)
-	 res = ncmpi_begin_indep_data(nc_file->int_ncid);
-
-      /* I need to keep track of the ndims of each var to translate
-       * start, count, and stride arrays to MPI_Offset type. */
-      if (!res)
-      {
-	 res = ncmpi_inq_nvars(nc_file->int_ncid, &pnetcdf_nvars);
-	 for (i = 0; i < pnetcdf_nvars; i++)
-	    res = ncmpi_inq_varndims(nc_file->int_ncid, i,
-				     &(nc4_info->pnetcdf_ndims[i]));
-
-      }
-   } else
-#endif
-   {
+   if(fSet(mode, NC_INMEMORY)) {
+   } else {
       /* Figure out if this is a hdf4 or hdf5 file. */
      if ((res = nc_check_for_hdf(path, use_parallel, comm, info, &hdf_file)))
          return res;
@@ -3204,6 +3172,7 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
    return NC_NOERR;
 }
 
+#if 0
 int
 NC4_set_content(int ncid, size_t size, void* memory)
 {
@@ -3231,6 +3200,7 @@ NC4_set_content(int ncid, size_t size, void* memory)
 done:
     return retval;
 }
+#endif
 
 /* This function will do the enddef stuff for a netcdf-4 file. */
 int
