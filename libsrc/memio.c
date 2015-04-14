@@ -327,8 +327,8 @@ memio_open(const char* path,
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
-    assert(path == NULL || sizehintp != NULL);
-    sizehint = (sizehintp != NULL ? *sizehintp : 0);
+    assert(sizehintp != NULL);
+    sizehint = *sizehintp;
 
     if(fisSet(ioflags,NC_INMEMORY)) {
 	filesize = meminfo->size;
@@ -336,13 +336,13 @@ memio_open(const char* path,
         /* Open the file, but make sure we can write it if needed */
         oflags = (persist ? O_RDWR : O_RDONLY);    
 #ifdef O_BINARY
-        fSet(oflags, O_BINARY);
+    fSet(oflags, O_BINARY);
 #endif
-        oflags |= O_EXCL;
+    oflags |= O_EXCL;
 #ifdef vms
-        fd = open(path, oflags, 0, "ctx=stm");
+    fd = open(path, oflags, 0, "ctx=stm");
 #else
-        fd  = open(path, oflags, OPENMODE);
+    fd  = open(path, oflags, OPENMODE);
 #endif
 #ifdef DEBUG
         if(fd < 0) {
@@ -350,7 +350,16 @@ memio_open(const char* path,
             perror("");
 	}
 #endif
-        if(fd < 0) {status = errno; goto unwind_open;}
+    if(fd < 0) {status = errno; goto unwind_open;}
+
+    /* get current filesize  = max(|file|,initialize)*/
+    filesize = lseek(fd,0,SEEK_END);
+    if(filesize < 0) {status = errno; goto unwind_open;}
+    /* move pointer back to beginning of file */
+    (void)lseek(fd,0,SEEK_SET);
+    if(filesize < (off_t)sizehint)
+        filesize = (off_t)sizehint;
+    status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
 
         /* get current filesize  = max(|file|,initialize)*/
         filesize = lseek(fd,0,SEEK_END);
@@ -394,6 +403,7 @@ fprintf(stderr,"memio_open: initial memory: %lu/%lu\n",(unsigned long)memio->mem
         }
         (void)close(fd);
     }
+    (void)close(fd); /* until memio_close() */
 
     /* Use half the filesize as the blocksize ? why*/
     sizehint = filesize/2; 
@@ -642,3 +652,32 @@ memio_sync(ncio* const nciop)
 {
     return NC_NOERR; /* do nothing */
 }
+
+/*
+Throw away any existing memory and set up
+to read (only) from this memory
+*/
+int
+memio_set_content(ncio* nciop, size_t size, void* memory)
+{
+    int status = NC_NOERR;
+    NCMEMIO* memio;
+
+    if(nciop == NULL || nciop->pvt == NULL) return NC_NOERR;
+
+    memio = (NCMEMIO*)nciop->pvt;
+    assert(memio != NULL);
+
+    /* sanity checks */
+    if(memio->locked || memio->pos > 0)
+	return NC_EDISKLESS;
+    if(memio->memory != NULL)
+	free(memio->memory);
+    /* reset */
+    memio->memory = memory;
+    memio->alloc = size;
+    memio->size = size;
+    fClr(nciop->ioflags, NC_WRITE);
+    return status;
+}
+
