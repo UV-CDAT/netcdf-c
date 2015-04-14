@@ -111,10 +111,6 @@ memio_new(const char* path, int ioflags, off_t initialsize, void* memory, ncio**
     assert(memiop != NULL && nciopp != NULL);
     assert(path != NULL || (memory != NULL && initialsize > 0));
 
-    /* use asserts because this is an internal function */
-    assert(memiop != NULL && nciopp != NULL);
-    assert(path != NULL || (memory != NULL && initialsize > 0));
-
     if(pagesize == 0) {
 
 #if defined (_WIN32) || defined(_WIN64)
@@ -323,12 +319,8 @@ memio_open(const char* path,
     if(fIsSet(ioflags,NC_NETCDF4))
         return NC_EDISKLESS; /* violates constraints */
 
-    /* For diskless open, the file must be classic version 1 or 2.*/
-    if(fIsSet(ioflags,NC_NETCDF4))
-        return NC_EDISKLESS; /* violates constraints */
-
-    assert(path == NULL || sizehintp != NULL);
-    sizehint = (sizehintp != NULL ? *sizehintp : 0);
+    assert(sizehintp != NULL);
+    sizehint = *sizehintp;
 
     if(fisSet(ioflags,NC_INMEMORY)) {
 	filesize = meminfo->size;
@@ -359,7 +351,6 @@ memio_open(const char* path,
         (void)lseek(fd,0,SEEK_SET);
         if(filesize < (off_t)sizehint)
             filesize = (off_t)sizehint;
-        status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
     }
 
         /* get current filesize  = max(|file|,initialize)*/
