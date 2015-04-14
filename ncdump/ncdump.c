@@ -43,9 +43,7 @@ int optind;
 #include "indent.h"
 #include "isnan.h"
 #include "cdl.h"
-#ifdef USE_DISKLESS
 #include "netcdf_mem.h"
-#endif
 
 #define int64_t long long
 #define uint64_t unsigned long long
@@ -2142,7 +2140,7 @@ main(int argc, char *argv[])
 		void* mem = NULL;
 		nc_status = fileopen(path,&mem,&size);
 		if(nc_status == NC_NOERR)
-	            nc_status = nc_open_mem(mem,size,NC_DISKLESS|NC_NOWRITE,&ncid);
+	            nc_status = nc_open_mem(path,NC_DISKLESS|NC_INMEMORY,size,mem,&ncid);
 	    } else 
 #endif
 	        nc_status = nc_open(path, NC_NOWRITE, &ncid);

@@ -22,6 +22,8 @@ to open a netCDF classic, 64-bit offset, or netCDF-4 file.
 \param path File name; this must be non-null, but is ignored except
 as noted below.
  
+\param mode the mode flags.
+
 \param size The size of the chunk of memory.
 
 \param memory The chunk of memory containing the content.
@@ -31,16 +33,14 @@ stored.
 
 <h2>Open Mode</h2>
 
-Note that this procedure does not all a mode value.
-This is because it assumes the equivalent of NC_NOWRITE|NC_DISKLESS.
+Note that this procedure uses a limited set of flags.  This
+is because it assumes the equivalent of
+NC_NOWRITE|NC_DISKLESS|NC_INMEMORY.
 
 It is not necessary to pass any information about the format of the
 file being opened. The file type will be detected automatically by the
 netCDF library.
  
-As of version 4.3.1.2, multiple calls to nc_open with the same
-path will return the same ncid value.
-
 nc_open_mem()returns the value NC_NOERR if no errors occurred. Otherwise,
 the returned status indicates an error. Possible causes of errors
 include:
@@ -57,7 +57,7 @@ include:
 */
 
 extern int
-nc_open_mem(const char* path, size_t size, void* memory, int* ncidp);
+nc_open_mem(const char* path, int mode, size_t size, void* memory, int* ncidp);
 
 #if defined(__cplusplus)
 }
