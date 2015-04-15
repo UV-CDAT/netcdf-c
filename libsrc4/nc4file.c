@@ -2714,7 +2714,6 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 #ifdef USE_DISKLESS
    int inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
 #endif
-
    assert(nc_file && path);
 
    LOG((1, "%s: path %s mode %d params %x",
