@@ -14,7 +14,6 @@ extern "C" {
 #endif
 
 /**
-/** 
 Open a netcdf file taking the content from a chunk of memory.
 It determines the underlying file format automatically. Use the same call
 to open a netCDF classic, 64-bit offset, or netCDF-4 file.

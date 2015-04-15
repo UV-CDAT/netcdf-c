@@ -114,76 +114,84 @@ done:
 }
 
 static int
-NC_check_file_type(const char *path, int use_parallel, void *mpi_info,
+NC_check_file_type(const char *path, int flags, void *parameters,
 		   int* model, int* version)
 {
    char magic[MAGIC_NUMBER_LEN];
    int status = NC_NOERR;
+   int use_parallel = ((flags & NC_MPIIO) == NC_MPIIO);
+   int inmemory = ((flags & NC_INMEMORY) == NC_INMEMORY);
     
    *model = 0;
 
-   /* Get the 4-byte magic from the beginning of the file. Don't use posix
-    * for parallel, use the MPI functions instead. */
+    if(inmemory)  {
+	NC_MEM_INFO* meminfo = (NC_MEM_INFO*)parameters;
+	if(meminfo == NULL || meminfo->size < MAGIC_NUMBER_LEN)
+	    {status = NC_EDISKLESS; goto done;}
+	memcpy(magic,meminfo->memory,MAGIC_NUMBER_LEN);
+    } else {/* presumably a real file */
+       /* Get the 4-byte magic from the beginning of the file. Don't use posix
+        * for parallel, use the MPI functions instead. */
 #ifdef USE_PARALLEL
-   if (use_parallel) 
-   {
-      MPI_File fh;
-      MPI_Status mstatus;
-      int retval;
-      MPI_Comm comm = MPI_COMM_WORLD;
-      MPI_Info info = MPI_INFO_NULL;
-
-      if(mpi_info != NULL) {
-	 comm = ((NC_MPI_INFO*)mpi_info)->comm;
-	 info = ((NC_MPI_INFO*)mpi_info)->info;
-      }
-      if((retval = MPI_File_open(comm, (char *)path, MPI_MODE_RDONLY,info, 
-				 &fh)) != MPI_SUCCESS)
-	 {status = NC_EPARINIT; goto done;}
-      if((retval = MPI_File_read(fh, magic, MAGIC_NUMBER_LEN, MPI_CHAR,
-				 &mstatus)) != MPI_SUCCESS)
-	 {status = NC_EPARINIT; goto done;}
-      if((retval = MPI_File_close(&fh)) != MPI_SUCCESS)
-	 {status = NC_EPARINIT; goto done;}
-   } else
-#endif /* USE_PARALLEL */
-   {
-      FILE *fp;
-      size_t i;
-#ifdef HAVE_SYS_STAT_H
-      struct stat st;
-#endif
-
-      if(path == NULL || strlen(path)==0)
-	 {status = NC_EINVAL; goto done;}
+	if (use_parallel) {
+	    MPI_File fh;
+	    MPI_Status mstatus;
+	    int retval;
+	    MPI_Comm comm = MPI_COMM_WORLD;
+	    MPI_Info info = MPI_INFO_NULL;
 	
-      if (!(fp = fopen(path, "r")))
-	 {status = errno; goto done;}
-
+	    if(parameters != NULL) {
+	        comm = ((NC_MPI_INFO*)parameters)->comm;
+		info = ((NC_MPI_INFO*)parameters)->info;
+	    }
+	    if((retval = MPI_File_open(comm,(char*)path,MPI_MODE_RDONLY,info,
+				       &fh)) != MPI_SUCCESS)
+		{status = NC_EPARINIT; goto done;}
+	    if((retval = MPI_File_read(fh, magic, MAGIC_NUMBER_LEN, MPI_CHAR,
+				 &mstatus)) != MPI_SUCCESS)
+		{status = NC_EPARINIT; goto done;}
+	    if((retval = MPI_File_close(&fh)) != MPI_SUCCESS)
+		{status = NC_EPARINIT; goto done;}
+	} else
+#endif /* USE_PARALLEL */
+	{
+	    FILE *fp;
+	    size_t i;
 #ifdef HAVE_SYS_STAT_H
-      /* The file must be at least MAGIC_NUMBER_LEN in size,
-         or otherwise the following fread will exhibit unexpected
-         behavior. */
-      if(!(fstat(fileno(fp),&st) == 0)) {
-	fclose(fp);
-	status = errno;
-        goto done;
-      }
-      
-      if(st.st_size < MAGIC_NUMBER_LEN) {
-	fclose(fp);
-	status = NC_ENOTNC;
-        goto done;
-      }
+	    struct stat st;
 #endif
 
-      i = fread(magic, MAGIC_NUMBER_LEN, 1, fp);
-      fclose(fp);
-      if(i == 0) 
-	{status = NC_ENOTNC; goto done;}
-      if(i != 1) 
-	{status = errno; goto done;}
-    }
+	    if(path == NULL || strlen(path)==0)
+		{status = NC_EINVAL; goto done;}
+	    
+	    if (!(fp = fopen(path, "r")))
+		{status = errno; goto done;}
+
+#ifdef HAVE_SYS_STAT_H
+	    /* The file must be at least MAGIC_NUMBER_LEN in size,
+	       or otherwise the following fread will exhibit unexpected
+  	       behavior. */
+	    if(!(fstat(fileno(fp),&st) == 0)) {
+	        fclose(fp);
+	        status = errno;
+	        goto done;
+	    }
+	    
+	    if(st.st_size < MAGIC_NUMBER_LEN) {
+		fclose(fp);
+		status = NC_ENOTNC;
+		goto done;
+	    }
+#endif
+
+	    i = fread(magic, MAGIC_NUMBER_LEN, 1, fp);
+	    fclose(fp);
+	    if(i == 0) 
+		{status = NC_ENOTNC; goto done;}
+	    if(i != 1) 
+		{status = errno; goto done;}
+	}
+    } /* !inmemory */
     
     /* Look at the magic number */
     status = NC_interpret_magic_number(magic,model,version,use_parallel);
@@ -1538,7 +1546,7 @@ applies to classic and 64-bit offset files.
 \param useparallel Non-zero if parallel I/O is to be used on this
 file.
 
-\param mpi_info Pointer to MPI comm and info.
+\param parameters Pointer to MPI comm and info.
 
 \param ncidp Pointer to location where returned netCDF ID is to be
 stored.
@@ -1548,7 +1556,7 @@ stored.
 int
 NC_create(const char *path, int cmode, size_t initialsz, 
 	  int basepe, size_t *chunksizehintp, int useparallel, 
-	  void* mpi_info, int *ncidp)
+	  void* parameters, int *ncidp)
 {
    int stat = NC_NOERR;
    NC* ncp = NULL;
@@ -1672,7 +1680,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 
    /* Assume create will fill in remaining ncp fields */
    if ((stat = dispatcher->create(path, cmode, initialsz, basepe, chunksizehintp,
-				   useparallel, mpi_info, dispatcher, ncp))) {
+				   useparallel, parameters, dispatcher, ncp))) {
 	del_from_NCList(ncp); /* oh well */
 	free_NC(ncp);
      } else {
@@ -1705,10 +1713,12 @@ NC_open(const char *path, int cmode,
    int stat = NC_NOERR;
    NC* ncp = NULL;
    NC_Dispatch* dispatcher = NULL;
+   int inmemory = ((cmode & NC_INMEMORY) == NC_INMEMORY);
    /* Need pieces of information for now to decide model*/
    int model = 0;
    int isurl = 0; 
    int version = 0;
+   int flags = 0;
 
    if(!nc_initialized) {
       stat = NC_initialize();
@@ -1728,38 +1738,28 @@ NC_open(const char *path, int cmode,
    }
 #endif
 
-   if((cmode & NC_INMEMORY) == NC_INMEMORY) {
+   if((cmode & NC_INMEMORY) != NC_INMEMORY) {
        isurl = NC_testurl(path);
        if(isurl)
            model = NC_urlmodel(path);
-       else {
-           version = 0;
-	   model = 0;
-           /* Look at the file if it exists */
-           stat = NC_check_file_type(path,useparallel,parameters,
-				&model,&version);
-           if(stat == NC_NOERR) {
-   	   if(model == 0)
-	       return NC_ENOTNC;
-           } else /* presumably not a netcdf file */
-	       return stat;
-	}
-   }
+    }
+    if(model == 0) {
+	version = 0;
+	/* Try to find dataset type */
+	if(useparallel) flags |= NC_MPIIO;
+	if(inmemory) flags |= NC_INMEMORY;
+	stat = NC_check_file_type(path,flags,parameters,&model,&version);
+        if(stat == NC_NOERR) {
+   	if(model == 0)
+	    return NC_ENOTNC;
+	} else /* presumably not a netcdf file */
+	    return stat;
+    }
 
-#if 1
    if(model == 0) {
 	fprintf(stderr,"Model == 0\n");
 	return NC_ENOTNC;
    }
-#else
-Not longer needed
-   /* Look to the incoming cmode for hints */
-   if(model == 0) {
-      if(cmode & NC_PNETCDF) model = NC_DISPATCH_NC5;
-      else if(cmode & NC_NETCDF4) model = NC_DISPATCH_NC4;
-    }
-   if(model == 0) model = NC_DISPATCH_NC3; /* final default */
-#endif
 
    /* Force flag consistentcy */
    if(model & NC_DISPATCH_NC4)
