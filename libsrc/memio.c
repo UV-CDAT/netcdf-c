@@ -305,15 +305,15 @@ memio_open(const char* path,
     ncio* *nciopp, void** const mempp)
 {
     ncio* nciop = NULL;
-    int fd;
-    int status;
+    int fd = -1;
+    int status = NC_NOERR;
     int persist = (fIsSet(ioflags,NC_WRITE)?1:0);
-    int oflags;
+    int oflags = 0;
     NCMEMIO* memio = NULL;
-    size_t sizehint;
-    off_t filesize;
-    off_t red;
-    char* pos;
+    size_t sizehint = 0;
+    off_t filesize = 0;
+    off_t red = 0;
+    char* pos = NULL;
     NC_MEM_INFO* meminfo = (NC_MEM_INFO*)parameters;
 
     if(path == NULL || strlen(path) == 0)
