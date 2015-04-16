@@ -104,6 +104,7 @@ memio_new(const char* path, int ioflags, off_t initialsize, void* memory, ncio**
     int status = NC_NOERR;
     ncio* nciop = NULL;
     NCMEMIO* memio = NULL;
+    int inmemory = (fIsSet(ioflags,NC_INMEMORY));
 
     /* use asserts because this is an internal function */
     assert(memiop != NULL && nciopp != NULL);
@@ -149,23 +150,12 @@ memio_new(const char* path, int ioflags, off_t initialsize, void* memory, ncio**
     if(memio == NULL) {status = NC_ENOMEM; goto fail;}
     *((void* *)&nciop->pvt) = memio;
 
-    if(path == NULL) { /* memory based content */
-        *((char**)&nciop->path) = NULL;
-        memio->alloc = initialsize;
-        memio->memory = memory;
-        memio->size = initialsize;
-        memio->pos = 0;
-        memio->persist = 0;
-    } else {
-        *((char**)&nciop->path) = strdup(path);
-        if(nciop->path == NULL) {status = NC_ENOMEM; goto fail;}
-        memio->alloc = initialsize;
-        memio->memory = NULL;
-        memio->size = 0;
-        memio->pos = 0;
-        memio->persist = fIsSet(ioflags,NC_WRITE);
-    }
-
+    *((char**)&nciop->path) = strdup(path);
+    if(nciop->path == NULL) {status = NC_ENOMEM; goto fail;}
+    memio->alloc = initialsize;
+    memio->pos = 0;
+    memio->size = 0;
+    memio->memory = NULL;
     if(memiop && memio) *memiop = memio; else free(memio);
     if(nciopp && nciop) *nciopp = nciop;
     else {
@@ -225,6 +215,7 @@ memio_create(const char* path, int ioflags,
     if(status != NC_NOERR)
         return status;
     memio->size = 0;
+    memio->persist = persist;
 
     /* malloc memory */
     memio->memory = (char*)malloc(memio->alloc);
@@ -381,9 +372,11 @@ memio_open(const char* path,
 
     if(fisSet(ioflags,NC_INMEMORY)) {
         memio->memory = meminfo->memory;
+        memio->persist = 0;
     } else {
         memio->memory = (char*)malloc(memio->alloc);
         if(memio->memory == NULL) {status = NC_ENOMEM; goto unwind_open;}
+        memio->persist = fIsSet(ioflags,NC_WRITE);
 
 #ifdef DEBUG
 fprintf(stderr,"memio_open: initial memory: %lu/%lu\n",(unsigned long)memio->memory,(unsigned long)memio->alloc);

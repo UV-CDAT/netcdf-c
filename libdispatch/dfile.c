@@ -119,8 +119,10 @@ NC_check_file_type(const char *path, int flags, void *parameters,
 {
    char magic[MAGIC_NUMBER_LEN];
    int status = NC_NOERR;
+   int diskless = ((flags & NC_DISKLESS) == NC_DISKLESS);
+   int persist = ((flags & NC_WRITE) == NC_WRITE);
    int use_parallel = ((flags & NC_MPIIO) == NC_MPIIO);
-   int inmemory = ((flags & NC_INMEMORY) == NC_INMEMORY);
+   int inmemory = (diskless && ((flags & NC_INMEMORY) == NC_INMEMORY));
     
    *model = 0;
 
@@ -160,7 +162,6 @@ NC_check_file_type(const char *path, int flags, void *parameters,
 #ifdef HAVE_SYS_STAT_H
 	    struct stat st;
 #endif
-
 	    if(path == NULL || strlen(path)==0)
 		{status = NC_EINVAL; goto done;}
 	    
