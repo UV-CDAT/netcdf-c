@@ -361,16 +361,6 @@ memio_open(const char* path,
             filesize = (off_t)sizehint;
     }
 
-        /* get current filesize  = max(|file|,initialize)*/
-        filesize = lseek(fd,0,SEEK_END);
-        if(filesize < 0) {status = errno; goto unwind_open;}
-        /* move pointer back to beginning of file */
-        (void)lseek(fd,0,SEEK_SET);
-        if(filesize < (off_t)sizehint)
-            filesize = (off_t)sizehint;
-        status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
-    }
-
     status = memio_new(path, ioflags, filesize, NULL, &nciop, &memio);
     if(status != NC_NOERR) {
 	if(fd >= 0) 
