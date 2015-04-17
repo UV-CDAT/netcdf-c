@@ -132,7 +132,7 @@ tst_iter.sh tst_mud.sh ref_tst_mud4.cdl ref_tst_mud4-bc.cdl             \
 ref_tst_mud4_chars.cdl \
 ref_tst_ncf213.cdl tst_h_scalar.sh                                      \
 tst_formatx3.sh tst_formatx4.sh                                         \
-CMakeLists.txt XGetopt.c tst_bom.sh
+CMakeLists.txt XGetopt.c tst_bom.sh tst_inmemory.sh
 
 # CDL files and Expected results
 SUBDIRS=cdl expected

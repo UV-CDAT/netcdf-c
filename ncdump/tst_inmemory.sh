@@ -29,7 +29,7 @@ function process {
 K=$1
 for f in $2 ; do
   echo "Testing ${f}"
-  ${builddir}/../ncgen/ncgen -$K -o ./results/${f}.nc ./${f}.cdl
+  ${builddir}/../ncgen/ncgen -$K -o ./results/${f}.nc ${srcdir}/${f}.cdl
   ./ncdump ./results/${f}.nc >./results/${f}.cdl
   ./ncdump -Xm ./results/${f}.nc >./results/${f}.cdx
   diff -w ./results/${f}.cdl ./results/${f}.cdx >& ./results/${f}.diff
