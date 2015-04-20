@@ -99,6 +99,7 @@ ENDIF()
 
   add_sh_test(ncdump tst_formatx3)
   add_sh_test(ncdump tst_bom)
+  add_sh_test(ncdump tst_inmemory)
 
   ###
   # This test fails on Visual Studio builds with bash.
@@ -124,17 +125,26 @@ ENDIF()
     add_sh_test(ncdump tst_formatx4)
     # Add this test by hand, as it is also called from a script.
     # Editing the script would break autotools compatibility.
-    add_bin_test_no_prefix(tst_special_atts)
-    add_bin_test_no_prefix(tst_compress)
-    add_bin_test_no_prefix(tst_chunking)
+    set(MANUAL_TESTS tst_special_atts tst_compress tst_chunking)
+    FOREACH (MTEST ${MANUAL_TESTS})
+      ADD_EXECUTABLE(${MTEST} ${MTEST}.c)
+      TARGET_LINK_LIBRARIES(${MTEST} netcdf)
+      IF(MSVC)
+	SET_TARGET_PROPERTIES(${MTEST}
+	  PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
+	  )
+      ENDIF()
 
-    # Known failure on MSVC; the number of 0's padding
-    # is different, but the result is actually correct.
-    #IF(NOT MSVC)
-      add_sh_test(ncdump tst_netcdf4)
-      add_bin_test(ncdump tst_h_rdc0)
-    #ENDIF()
+    ENDFOREACH()
 
+    IF(NOT WIN32)
+      # tst_netcdf4 depends on the output from other scripts
+      # that don't currently run. So for time being, leave
+      # it disabled.
+
+      #add_sh_test(ncdump tst_netcdf4)
+      #add_bin_test(ncdump tst_h_rdc0)
+    ENDIF()
     add_bin_test(ncdump tst_unicode)
 
     add_bin_test(ncdump tst_fillbug)
