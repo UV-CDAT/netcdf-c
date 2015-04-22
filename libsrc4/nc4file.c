@@ -12,22 +12,21 @@ COPYRIGHT file for copying and redistribution conditions.
 #include "config.h"
 #include <errno.h>  /* netcdf functions sometimes return system errors */
 
-#include "nc.h"
-#include "nc4internal.h"
-#include "nc4dispatch.h"
-
-#include "H5DSpublic.h"
-#ifdef USE_DISKLESS
-#include "hdf5_hl.h"
-#endif
 
 #ifdef USE_HDF4
 #include <mfhdf.h>
 #endif
 
-#if 0 /*def USE_PNETCDF*/
-#include <pnetcdf.h>
-#endif
+#include "nc.h"
+#include "nc4internal.h"
+#include "nc4dispatch.h"
+
+/* must be after nc4internal.h */
+//#include "hdf5.h"
+//#include "hdf5_hl.h"
+//#include <H5FDmpi.h>
+//#include <H5FDmpio.h>
+#include <H5DSpublic.h>
 
 /* This is to track opened HDF5 objects to make sure they are
  * closed. */
@@ -194,7 +193,7 @@ static int
 nc_check_for_hdf(const char *path, int flags, void* parameters, int *hdf_file)
 {
    char blob[MAGIC_NUMBER_LEN];
-#ifdef USE_PARALLLEL
+#ifdef USE_PARALLEL
    int use_parallel = ((flags & NC_MPIIO) == NC_MPIIO);
    NC_MPI_INFO* mpiinfo = (NC_MPI_INFO*)parameters;
    MPI_Comm comm = MPI_COMM_WORLD;
@@ -258,7 +257,7 @@ nc_check_for_hdf(const char *path, int flags, void* parameters, int *hdf_file)
        /* Check for HDF4. */
        if (memcmp(blob, "\016\003\023\001", 4)==0)
 	   *hdf_file = NC_HDF4_FILE;
-       if (memcmp(blob, "HDF", 3)==0)
+       else if (memcmp(blob, "HDF", 3)==0)
 	   *hdf_file = NC_HDF5_FILE;
        else
 	   *hdf_file = 0;
