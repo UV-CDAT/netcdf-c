@@ -10,7 +10,7 @@ fi
 HDF5=1
 DAP=1
 #HDF4=1
-PNETCDF=1
+#PNETCDF=1
 
 #PAR=1
 
@@ -118,7 +118,7 @@ FLAGS="$FLAGS --disable-examples"
 #FLAGS="$FLAGS --enable-dap-long-tests"
 #FLAGS="$FLAGS --enable-ffio"
 #FLAGS="$FLAGS --enable-benchmarks"
-#FLAGS="$FLAGS --enable-extra-tests"
+FLAGS="$FLAGS --enable-extra-tests"
 #FLAGS="$FLAGS --enable-large-file-tests"
 #FLAGS="$FLAGS --disable-testsets"
 #FLAGS="$FLAGS --disable-dap-remote-tests"

@@ -22,11 +22,11 @@ COPYRIGHT file for copying and redistribution conditions.
 #include "nc4dispatch.h"
 
 /* must be after nc4internal.h */
-//#include "hdf5.h"
-//#include "hdf5_hl.h"
-//#include <H5FDmpi.h>
-//#include <H5FDmpio.h>
 #include <H5DSpublic.h>
+
+#ifdef USE_DISKLESS
+#include <hdf5_hl.h>
+#endif
 
 /* This is to track opened HDF5 objects to make sure they are
  * closed. */
@@ -2232,14 +2232,14 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
       if (mode & NC_MPIIO)  /* MPI/IO */
       {
 	 LOG((4, "opening parallel file with MPI/IO"));
-	 if (H5Pset_fapl_mpio(fapl_id, comm, info) < 0)
+	 if (H5Pset_fapl_mpio(fapl_id, mpiinfo->comm, mpiinfo->info) < 0)
 	    BAIL(NC_EPARINIT);
       }
 #ifdef USE_PARALLEL_POSIX
       else /* MPI/POSIX */
       {
 	 LOG((4, "opening parallel file with MPI/posix"));
-	 if (H5Pset_fapl_mpiposix(fapl_id, comm, 0) < 0)
+	 if (H5Pset_fapl_mpiposix(fapl_id, mpiinfo->comm, 0) < 0)
 	    BAIL(NC_EPARINIT);
       }
 #else /* USE_PARALLEL_POSIX */
@@ -2252,19 +2252,19 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
 #endif /* USE_PARALLEL_POSIX */
 
       /* Keep copies of the MPI Comm & Info objects */
-      if (MPI_SUCCESS != MPI_Comm_dup(comm, &nc4_info->comm))
+      if (MPI_SUCCESS != MPI_Comm_dup(mpiinfo->comm, &nc4_info->comm))
          BAIL(NC_EMPI);
       comm_duped++;
-      if (MPI_INFO_NULL != info)
+      if (MPI_INFO_NULL != mpiinfo->info)
       {
-         if (MPI_SUCCESS != MPI_Info_dup(info, &nc4_info->info))
+         if (MPI_SUCCESS != MPI_Info_dup(mpiinfo->info, &nc4_info->info))
             BAIL(NC_EMPI);
          info_duped++;
       }
       else
       {
          /* No dup, just copy it. */
-         nc4_info->info = info;
+         nc4_info->info = mpiinfo->info;
       }
    }
 #else /* only set cache for non-parallel. */
@@ -2711,6 +2711,9 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 #ifdef USE_PARALLEL
    NC_MPI_INFO mpidfalt = {MPI_COMM_WORLD, MPI_INFO_NULL};
 #endif
+#ifdef USE_DISKLESS
+   int inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
+#endif
 
    assert(nc_file && path);
 
@@ -2718,7 +2721,7 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 	__func__, path, mode, parameters));
 
 #ifdef USE_PARALLEL
-   if (!((mode & (NC_MPIIO | NC_MPIPOSIX)) && (parameters != NULL)))
+   if (!inmemory && use_parallel && parameters == NULL)
 	parameters = &mpidfalt;
 #endif /* USE_PARALLEL */
 
