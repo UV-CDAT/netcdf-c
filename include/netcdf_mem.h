@@ -2,7 +2,7 @@
  * Copyright 2010 University Corporation for Atmospheric
  * Research/Unidata. See COPYRIGHT file for more info.
  *
- * This header file is temporary to add ability to read from memory
+ * See \ref copyright file for more info.
  * 
  */
 
