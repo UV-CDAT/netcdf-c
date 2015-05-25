@@ -199,8 +199,8 @@ nc_check_for_hdf(const char *path, int flags, void* parameters, int *hdf_file)
    MPI_Comm comm = MPI_COMM_WORLD;
    MPI_Info info = MPI_INFO_NULL;
 #endif
-#ifdef USE_DISKLESS
    int inmemory = ((flags & NC_INMEMORY) == NC_INMEMORY);
+#ifdef USE_DISKLESS
    NC_MEM_INFO* meminfo = (NC_MEM_INFO*)parameters;
 #endif
 
@@ -2189,6 +2189,7 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
       H5F_ACC_RDWR : H5F_ACC_RDONLY;
    int retval;
    NC_HDF5_FILE_INFO_T* nc4_info = NULL;
+   int inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
 #ifdef USE_DISKLESS
    NC_MEM_INFO* meminfo = (NC_MEM_INFO*)parameters;
 #endif
@@ -2278,7 +2279,7 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
    /* The NetCDF-3.x prototype contains an mode option NC_SHARE for
       multiple processes accessing the dataset concurrently.  As there
       is no HDF5 equivalent, NC_SHARE is treated as NC_NOWRITE. */
-   if((mode & NC_INMEMORY) == NC_INMEMORY) {
+   if(inmemory) {
        if((nc4_info->hdfid = H5LTopen_file_image(meminfo->memory,meminfo->size,
 			H5LT_FILE_IMAGE_DONT_COPY|H5LT_FILE_IMAGE_DONT_RELEASE
 			)) < 0)
@@ -2711,9 +2712,10 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 #ifdef USE_PARALLEL
    NC_MPI_INFO mpidfalt = {MPI_COMM_WORLD, MPI_INFO_NULL};
 #endif
-#ifdef USE_DISKLESS
+#if defined USE_PARALLEL || defined USE_HDF4
    int inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
 #endif
+
    assert(nc_file && path);
 
    LOG((1, "%s: path %s mode %d params %x",
@@ -2762,7 +2764,7 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
    if (hdf_file == NC_HDF5_FILE)
        res = nc4_open_file(path, mode, parameters, nc_file);
 #ifdef USE_HDF4
-   else if (hdf_file == NC_HDF4_FILE && ((mode & NC_INMEMORY) == NC_INMEMORY))
+   else if (hdf_file == NC_HDF4_FILE && inmemory)
 	return NC_EDISKLESS;
    else if (hdf_file == NC_HDF4_FILE)
        res = nc4_open_hdf4_file(path, mode, nc_file);
