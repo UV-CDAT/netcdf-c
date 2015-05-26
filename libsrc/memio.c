@@ -155,7 +155,7 @@ memio_new(const char* path, int ioflags, off_t initialsize, void* memory, ncio**
     if(nciop->path == NULL) {status = NC_ENOMEM; goto fail;}
     memio->alloc = initialsize;
     memio->pos = 0;
-    memio->size = 0;
+    memio->size = minsize;
     memio->memory = NULL;
     memio->persist = fIsSet(ioflags,NC_WRITE);
     if(memiop && memio) *memiop = memio; else free(memio);
@@ -166,7 +166,6 @@ memio_new(const char* path, int ioflags, off_t initialsize, void* memory, ncio**
     }
     if(inmemory) {
 	memio->memory = memory;
-	memio->size = minsize;
     } else {
         /* malloc memory */
         memio->memory = (char*)malloc(memio->alloc);
@@ -185,13 +184,12 @@ fail:
     goto done;
 }
 
-/* Create a file, and the ncio struct to go with it. This function is
-   only called from nc__create_mp.
+/* Create a file, and the ncio struct to go with it.
 
    path - path of file to create.
    ioflags - flags from nc_create
    initialsz - From the netcdf man page: "The argument
-   Iinitialsize sets the initial size of the file at creation time."
+               initialsize sets the initial size of the file at creation time."
    igeto - 
    igetsz - 
    sizehintp - the size of a page of data for buffered reads and writes.
@@ -270,8 +268,7 @@ unwind_open:
     return status;
 }
 
-/* This function opens the data file. It is only called from nc.c,
-   from nc__open_mp and nc_delete_mp.
+/* This function opens the data file.
 
    path - path of data file.
    ioflags - flags passed into nc_open.

@@ -1739,7 +1739,7 @@ NC_open(const char *path, int cmode,
    }
 #endif
 
-   if((cmode & NC_INMEMORY) != NC_INMEMORY) {
+   if(!inmemory) {
        isurl = NC_testurl(path);
        if(isurl)
            model = NC_urlmodel(path);
