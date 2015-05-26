@@ -25,7 +25,7 @@ rm -fr ./results
 mkdir ./results
 
 # Dump classic files two ways and compare
-function process {
+dotest() {
 K=$1
 for f in $2 ; do
   echo "Testing ${f}"
@@ -40,8 +40,8 @@ for f in $2 ; do
 done
 }
 
-process 3 "$CLASSIC"
-process 4 "$EXTENDED"
+dotest 3 "$CLASSIC"
+dotest 4 "$EXTENDED"
 
 # Cleanup
 rm -fr results
