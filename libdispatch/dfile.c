@@ -670,7 +670,12 @@ nc__open(const char *path, int mode,
 /** 
 Open a netCDF file with the contents taken from a block of memory.
 
+The file format is determined automatically. Use the same call
+to open a netCDF classic, 64-bit offset, or netCDF-4 file.
+
 \param path Must be non-null, but otherwise only used to set the dataset name.
+
+\param mode the mode flags; note that this procedure uses a limited set of flags.  This is because it assumes the equivalent of NC_NOWRITE|NC_DISKLESS|NC_INMEMORY.
 
 \param size The length of the block of memory being passed.
  
@@ -684,8 +689,37 @@ stored.
 
 \returns ::NC_ENOMEM Out of memory.
 
-\returns Various other netcdf classic and netcdf 4 errors.
+\returns ::NC_EDISKLESS Error in establishing the in-memory content.
+
+\returns ::NC_EHDFERR HDF5 error. (NetCDF-4 files only.)
+
+\returns ::NC_EINVAL Invalid arguments (e.g. a null memory pointer).
+
+\returns All the errors of normal nc_open().
+
+<h1>Examples</h1>
+
+Assume that the contents of an existing netCDF file, foo.nc,
+has been read into memory.
+This example uses nc_open_mem()to open foo.nc for read-only, non-shared access:
+
+@code
+#include <netcdf.h>
+   ... 
+int status = NC_NOERR;
+int ncid;
+size_t size;
+void* mem;
+   ... 
+size = <size of foo.nc file>;
+mem = malloc(size);
+<read the contents of file foo.nc into the mem variable>
+   ...
+status = nc_open_mem("foo.nc", 0, size, mem, &ncid);
+if (status != NC_NOERR) handle_error(status);
+@endcode
 */
+
 int
 nc_open_mem(const char* path, int mode, size_t size, void* memory, int* ncidp)
 {

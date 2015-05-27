@@ -15,11 +15,11 @@ extern "C" {
 
 /**
 Open a netcdf file taking the content from a chunk of memory.
+
 It determines the underlying file format automatically. Use the same call
 to open a netCDF classic, 64-bit offset, or netCDF-4 file.
 
-\param path File name; this must be non-null, but is ignored except
-as noted below.
+\param path Must be non-null, but otherwise only used to set the dataset name.
  
 \param mode the mode flags.
 
