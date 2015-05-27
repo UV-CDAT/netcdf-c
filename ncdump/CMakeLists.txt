@@ -97,6 +97,8 @@ ENDIF()
       add_sh_test(ncdump tst_iter)
   ENDIF()
 
+  add_sh_test(ncdump tst_netcdf4)
+
   add_sh_test(ncdump tst_formatx3)
   add_sh_test(ncdump tst_bom)
   add_sh_test(ncdump tst_inmemory)
@@ -142,7 +144,7 @@ ENDIF()
       # that don't currently run. So for time being, leave
       # it disabled.
 
-      #add_sh_test(ncdump tst_netcdf4)
+
       #add_bin_test(ncdump tst_h_rdc0)
     ENDIF()
     add_bin_test(ncdump tst_unicode)

@@ -5,7 +5,7 @@
 set -e
 
 if test "x$srcdir" = "x"; then
-    srcdir=`dirname $0`; 
+    srcdir=`dirname $0`;
 fi
 # add hack for sunos
 export srcdir;
@@ -43,7 +43,7 @@ diff -b tst_group_data.cdl $srcdir/ref_tst_group_data.cdl
 #
 # http://www.mingw.org/wiki/Posix_path_conversion
 
-if [[ "$OSTYPE" != 'msys' ]]; then
+if [ "$OSTYPE" != 'msys' ]; then
 echo "*** Testing -v option with absolute name and groups..."
 ./ncdump -v /g2/g3/var tst_group_data.nc | sed 's/e+0/e+/g' > tst_group_data.cdl
 # echo "*** comparing tst_group_data.cdl with ref_tst_group_data_v23.cdl..."
@@ -86,5 +86,3 @@ diff -b tst_special_atts.cdl $srcdir/ref_tst_special_atts.cdl
 
 echo "*** All ncgen and ncdump test output for netCDF-4 format passed!"
 exit 0
-
-
