@@ -12,16 +12,16 @@ COPYRIGHT file for copying and redistribution conditions.
 #include "config.h"
 #include <errno.h>  /* netcdf functions sometimes return system errors */
 
-
-#ifdef USE_HDF4
-#include <mfhdf.h>
-#endif
-
 #include "nc.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
 
 /* must be after nc4internal.h */
+
+#ifdef USE_HDF4
+#include <mfhdf.h>
+#endif
+
 #include <H5DSpublic.h>
 
 #ifdef USE_DISKLESS
@@ -3227,7 +3227,7 @@ NC4_set_content(int ncid, size_t size, void* memory)
 	BAIL(NC_EHDFERR);
 #else
     retval = NC_EDISKLESS;
-#endif    				
+#endif
 
 done:
     return retval;
