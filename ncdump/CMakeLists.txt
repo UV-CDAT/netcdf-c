@@ -97,11 +97,6 @@ ENDIF()
       add_sh_test(ncdump tst_iter)
   ENDIF()
 
-  add_sh_test(ncdump tst_netcdf4)
-
-  add_sh_test(ncdump tst_formatx3)
-  add_sh_test(ncdump tst_bom)
-  add_sh_test(ncdump tst_inmemory)
 
   ###
   # This test fails on Visual Studio builds with bash.
@@ -147,6 +142,13 @@ ENDIF()
 
       #add_bin_test(ncdump tst_h_rdc0)
     ENDIF()
+      add_sh_test(ncdump tst_netcdf4)
+
+    add_sh_test(ncdump tst_formatx3)
+    add_sh_test(ncdump tst_bom)
+    add_sh_test(ncdump tst_inmemory)
+
+
     add_bin_test(ncdump tst_unicode)
 
     add_bin_test(ncdump tst_fillbug)
