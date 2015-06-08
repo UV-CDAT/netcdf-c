@@ -1974,8 +1974,11 @@ void adapt_url_for_cache(char **pathp) {
 }
 #endif
 
-int
-main(int argc, char *argv[])
+#ifdef _MSC_VER
+int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
     int c;
     int i;
